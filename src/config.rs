@@ -89,3 +89,48 @@ impl Config {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Config;
+    use std::io::Write;
+
+    #[test]
+    fn capture_config_applies_serde_field_defaults() {
+        let capture: super::CaptureConfig = toml::from_str("").unwrap();
+        assert!(capture.bpf_filter.contains("port 502"));
+        assert_eq!(capture.db_batch_size, 100);
+
+        let scoring: super::ScoringConfig = toml::from_str("").unwrap();
+        assert_eq!(scoring.cleartext_sensitive_weight, 1.0);
+    }
+
+    #[test]
+    fn load_or_default_without_path_returns_ok() {
+        assert!(Config::load_or_default(None).is_ok());
+    }
+
+    #[test]
+    fn load_parses_toml_overrides() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.toml");
+        let mut file = std::fs::File::create(&path).unwrap();
+        write!(
+            file,
+            r#"
+[capture]
+bpf_filter = "port 502"
+db_batch_size = 50
+
+[scoring]
+cleartext_sensitive_weight = 0.5
+"#
+        )
+        .unwrap();
+
+        let config = Config::load(&path).unwrap();
+        assert_eq!(config.capture.bpf_filter, "port 502");
+        assert_eq!(config.capture.db_batch_size, 50);
+        assert_eq!(config.scoring.cleartext_sensitive_weight, 0.5);
+    }
+}

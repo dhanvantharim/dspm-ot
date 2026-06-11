@@ -173,3 +173,42 @@ fn csv_escape(value: &str) -> String {
         value.to_string()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{csv_escape, run};
+    use crate::db::Database;
+
+    #[test]
+    fn csv_escape_quotes_special_characters() {
+        assert_eq!(csv_escape("plain"), "plain");
+        assert_eq!(csv_escape("a,b"), "\"a,b\"");
+        assert_eq!(csv_escape("say \"hi\""), "\"say \"\"hi\"\"\"");
+    }
+
+    #[test]
+    fn run_writes_json_posture_report() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let output_path = dir.path().join("report.json");
+
+        let db = Database::open(&db_path).unwrap();
+        db.upsert_asset("192.168.1.5", "modbus").unwrap();
+
+        run("json", Some(&output_path), "posture", None, &db_path).unwrap();
+
+        let content = std::fs::read_to_string(&output_path).unwrap();
+        assert!(content.contains("\"generated_at\""));
+        assert!(content.contains("192.168.1.5"));
+    }
+
+    #[test]
+    fn run_rejects_unsupported_format() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        Database::open(&db_path).unwrap();
+
+        let err = run("xml", Some(&db_path), "posture", None, &db_path).unwrap_err();
+        assert!(err.to_string().contains("unsupported report format/type"));
+    }
+}

@@ -188,3 +188,48 @@ fn row_to_asset(row: &Row) -> rusqlite::Result<AssetRow> {
         last_seen: row.get(5)?,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Database;
+
+    #[test]
+    fn upsert_asset_accumulates_protocols() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open(&dir.path().join("test.db")).unwrap();
+
+        db.upsert_asset("192.168.1.10", "modbus").unwrap();
+        db.upsert_asset("192.168.1.10", "dnp3").unwrap();
+
+        let assets = db.list_assets(None).unwrap();
+        assert_eq!(assets.len(), 1);
+        assert!(assets[0].protocols.contains("modbus"));
+        assert!(assets[0].protocols.contains("dnp3"));
+    }
+
+    #[test]
+    fn upsert_flow_aggregates_packets_and_bytes() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open(&dir.path().join("test.db")).unwrap();
+
+        db.upsert_flow("10.0.0.1", "10.0.0.2", "modbus", 100).unwrap();
+        db.upsert_flow("10.0.0.1", "10.0.0.2", "modbus", 50).unwrap();
+
+        let flows = db.list_flows().unwrap();
+        assert_eq!(flows.len(), 1);
+        assert_eq!(flows[0].packet_count, 2);
+        assert_eq!(flows[0].byte_volume, 150);
+    }
+
+    #[test]
+    fn list_assets_respects_top_limit() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open(&dir.path().join("test.db")).unwrap();
+
+        db.upsert_asset("10.0.0.1", "modbus").unwrap();
+        db.upsert_asset("10.0.0.2", "dnp3").unwrap();
+
+        let assets = db.list_assets(Some(1)).unwrap();
+        assert_eq!(assets.len(), 1);
+    }
+}

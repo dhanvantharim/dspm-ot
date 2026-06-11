@@ -36,3 +36,24 @@ impl ProtocolKind {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::ProtocolKind;
+
+    #[test]
+    fn from_port_maps_ot_ports() {
+        assert_eq!(ProtocolKind::from_port(502), Some(ProtocolKind::Modbus));
+        assert_eq!(ProtocolKind::from_port(44818), Some(ProtocolKind::EthernetIp));
+        assert_eq!(ProtocolKind::from_port(2222), Some(ProtocolKind::EthernetIp));
+        assert_eq!(ProtocolKind::from_port(20000), Some(ProtocolKind::Dnp3));
+        assert_eq!(ProtocolKind::from_port(80), None);
+    }
+
+    #[test]
+    fn as_str_returns_stable_names() {
+        assert_eq!(ProtocolKind::Modbus.as_str(), "modbus");
+        assert_eq!(ProtocolKind::EthernetIp.as_str(), "ethernet_ip");
+        assert_eq!(ProtocolKind::Dnp3.as_str(), "dnp3");
+    }
+}

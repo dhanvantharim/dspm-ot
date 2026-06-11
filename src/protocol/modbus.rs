@@ -78,3 +78,32 @@ fn parse_mbap(input: &[u8]) -> IResult<&[u8], ModbusFrame> {
         },
     ))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{FunctionCode, parse};
+
+    #[test]
+    fn parse_valid_mbap_frame() {
+        // transaction=1, proto=0, length=3, unit=1, fc=3 (read holding), data=0x00
+        let raw = [0x00, 0x01, 0x00, 0x00, 0x00, 0x03, 0x01, 0x03, 0x00];
+        let frame = parse(&raw).expect("valid modbus frame");
+        assert_eq!(frame.transaction_id, 1);
+        assert_eq!(frame.unit_id, 1);
+        assert_eq!(frame.function_code, 3);
+        assert_eq!(frame.data, vec![0x00]);
+    }
+
+    #[test]
+    fn parse_rejects_truncated_frame() {
+        assert!(parse(&[0x00, 0x01, 0x00, 0x00]).is_none());
+    }
+
+    #[test]
+    fn function_code_write_detection() {
+        assert!(FunctionCode::from(5).is_write());
+        assert!(FunctionCode::from(16).is_write());
+        assert!(!FunctionCode::from(3).is_write());
+        assert_eq!(FunctionCode::from(99), FunctionCode::Unknown);
+    }
+}

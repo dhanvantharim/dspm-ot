@@ -24,3 +24,29 @@ fn parse_frame(input: &[u8]) -> IResult<&[u8], Dnp3Frame> {
     let (input, function_code) = le_u8(input)?;
     Ok((input, Dnp3Frame { src, dst, function_code }))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::parse;
+
+    #[test]
+    fn parse_valid_dnp3_frame() {
+        let raw = [
+            0x05, 0x64, 0x0C, 0xC4, // start + length + control
+            0x01, 0x00, // dst
+            0x02, 0x00, // src
+            0x00, 0x00, // crc
+            0xC0, // transport
+            0x01, // function code
+        ];
+        let frame = parse(&raw).expect("valid dnp3 frame");
+        assert_eq!(frame.dst, 1);
+        assert_eq!(frame.src, 2);
+        assert_eq!(frame.function_code, 1);
+    }
+
+    #[test]
+    fn parse_rejects_invalid_start_bytes() {
+        assert!(parse(&[0x00, 0x64]).is_none());
+    }
+}

@@ -55,3 +55,26 @@ impl Asset {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Asset;
+
+    #[test]
+    fn add_protocol_deduplicates() {
+        let mut asset = Asset::new("10.0.0.1".to_string());
+        asset.add_protocol("modbus");
+        asset.add_protocol("modbus");
+        asset.add_protocol("dnp3");
+        assert_eq!(asset.protocols, vec!["modbus", "dnp3"]);
+    }
+
+    #[test]
+    fn touch_updates_last_seen() {
+        let mut asset = Asset::new("10.0.0.2".to_string());
+        let before = asset.last_seen;
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        asset.touch();
+        assert!(asset.last_seen >= before);
+    }
+}
